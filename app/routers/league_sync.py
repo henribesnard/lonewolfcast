@@ -12,6 +12,7 @@ async def sync_leagues(db: AsyncSession = Depends(get_db)):
         service = LeagueSyncService(db)
         result = await service.sync_leagues()
         return result
+    
     except Exception as e:
         print(f"Sync Error: {str(e)}")  # Log l'erreur côté serveur
         raise HTTPException(

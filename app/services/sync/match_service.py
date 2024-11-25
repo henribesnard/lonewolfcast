@@ -1,29 +1,36 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from app.api.football.match_client import MatchAPIClient
 from app.api.football.match_schemas import ApiResponse, MatchSyncResponse
 from app.models.match import Match
 from app.models.league import League, Season
-
 
 class MatchSyncService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.client = MatchAPIClient()
 
-    async def sync_matches(self) -> MatchSyncResponse:
-        """
-        Synchronise tous les matchs pour les couples league-saison disponibles en base
-        """
-        try:
-            print("\n=== Début synchronisation des matchs ===")
-            current_time = datetime.utcnow()
-            print(f"Timestamp de synchronisation : {current_time}")
+    def parse_date(self, date_str: str) -> datetime:
+        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
 
-            # Récupérer les couples league-saison à synchroniser
+    async def sync_matches(self) -> MatchSyncResponse:
+        try:
+            current_time = datetime.utcnow()
+
+            # Vérifier et récupérer les leagues existantes avec ID
+            result = await self.db.execute(
+                select(League.api_id, League.id)
+                .where(League.is_active.is_(True))
+            )
+            leagues_map = {league.api_id: league.id for league in result.fetchall()}
+            
+            if not leagues_map:
+                raise Exception("Aucune league en base. Synchronisez d'abord les leagues.")
+
             league_season_query = (
-                select(League.api_id, Season.year)
+                select(League.api_id, League.id, Season.id, Season.year)
                 .join(Season, League.id == Season.league_id)
                 .where(Season.has_predictions.is_(True))
             )
@@ -36,69 +43,66 @@ class MatchSyncService:
             updated_matches = 0
             errors = []
 
-            print(f"\nTraitement de {len(league_season_pairs)} couples league-saison...")
-
-            for league_id, season in league_season_pairs:
+            for league_api_id, league_id, season_id, season_year in league_season_pairs:
                 try:
-                    print(f"\nSynchronisation pour league {league_id}, saison {season}...")
-                    api_data = await self.client.get_matches(league_id=league_id, season=season)
+                    api_data = await self.client.get_matches(league_id=league_api_id, season=season_year)
                     api_response = ApiResponse(**api_data)
 
                     for match_data in api_response.response:
-                        fixture = match_data["fixture"]
-                        teams = match_data["teams"]
-                        league = match_data["league"]
+                        fixture = match_data.fixture
+                        teams = match_data.teams
 
-                        # Vérifier si le match existe déjà
-                        stmt = select(Match).where(Match.api_fixture_id == fixture["id"])
+                        match_date = self.parse_date(fixture.date)
+                        
+                        stmt = select(Match).where(Match.api_fixture_id == fixture.id)
                         result = await self.db.execute(stmt)
                         db_match = result.scalar_one_or_none()
 
                         if db_match:
-                            # Mise à jour du match existant
-                            db_match.date = fixture["date"]
-                            db_match.status = fixture["status"]["short"]
-                            db_match.home_team = teams["home"]["name"]
-                            db_match.away_team = teams["away"]["name"]
+                            db_match.date = match_date
+                            db_match.status = fixture.status.short
+                            db_match.home_team = teams.home.name
+                            db_match.away_team = teams.away.name
+                            db_match.round = fixture.round
                             db_match.updated_at = current_time
                             updated_matches += 1
-                            print(f"Mise à jour du match {fixture['id']}")
                         else:
-                            # Création d'un nouveau match
-                            db_match = Match(
-                                api_fixture_id=fixture["id"],
-                                league_id=league_id,
-                                date=fixture["date"],
-                                status=fixture["status"]["short"],
-                                home_team=teams["home"]["name"],
-                                home_team_id=teams["home"]["id"],
-                                home_team_logo=teams["home"]["logo"],
-                                away_team=teams["away"]["name"],
-                                away_team_id=teams["away"]["id"],
-                                away_team_logo=teams["away"]["logo"],
-                                venue=fixture["venue"]["name"],
-                                round=league["round"],
+                            new_match = Match(
+                                api_fixture_id=fixture.id,
+                                league_id=league_id,  # Utilise l'ID interne
+                                date=match_date,
+                                status=fixture.status.short,
+                                home_team=teams.home.name,
+                                home_team_id=teams.home.id,
+                                home_team_logo=teams.home.logo,
+                                away_team=teams.away.name,
+                                away_team_id=teams.away.id,
+                                away_team_logo=teams.away.logo,
+                                venue=fixture.venue.name if fixture.venue else None,
+                                round=fixture.round,
                                 created_at=current_time,
                                 updated_at=current_time
                             )
-                            self.db.add(db_match)
+                            self.db.add(new_match)
                             created_matches += 1
-                            print(f"Création du match {fixture['id']}")
 
+                        await self.db.commit()
                         synced_matches += 1
+                        total_matches += 1
 
-                    # Valider les changements après chaque league-saison
+                    await self.db.execute(
+                        update(Season)
+                        .where(Season.id == season_id)
+                        .values(matches_synced=True, last_match_sync=current_time)
+                    )
                     await self.db.commit()
 
                 except Exception as e:
-                    # Annuler les modifications en cas d'erreur
                     await self.db.rollback()
-                    error_msg = f"Erreur lors de la synchronisation pour league={league_id}, saison={season}: {str(e)}"
+                    error_msg = f"Erreur pour league={league_api_id}, season={season_year}: {str(e)}"
                     print(error_msg)
                     errors.append(error_msg)
-                    continue
 
-            print("\n=== Fin synchronisation des matchs ===")
             return MatchSyncResponse(
                 total_matches=total_matches,
                 synced_matches=synced_matches,
@@ -108,5 +112,5 @@ class MatchSyncService:
             )
 
         except Exception as e:
-            print(f"\nErreur globale lors de la synchronisation des matchs: {str(e)}")
-            raise Exception(f"Erreur globale lors de la synchronisation des matchs: {str(e)}")
+            await self.db.rollback()
+            raise Exception(f"Erreur globale: {str(e)}")

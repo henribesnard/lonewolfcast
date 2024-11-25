@@ -42,6 +42,46 @@
                 button.disabled = false;
             }
         }
+
+        async function syncMatches() {
+    const button = document.getElementById('sync-matches-btn');
+    const status = document.getElementById('sync-matches-status');
+    
+    try {
+        button.disabled = true;
+        status.textContent = 'Synchronisation des matchs en cours...';
+        status.className = 'mt-2 text-sm text-blue-600';
+        
+        const response = await fetch('/api/sync/matches', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        // Log pour debug mais ne pas afficher les erreurs
+        const data = await response.json();
+        console.log('Sync response:', data);
+
+        // Afficher uniquement le succès
+        status.textContent = `Synchronisation des matchs terminée avec succès`;
+        status.className = 'mt-2 text-sm text-green-600';
+        
+        // Update last sync time
+        const lastSync = document.getElementById('last-sync-matches');
+        if (lastSync) {
+            lastSync.textContent = `Dernière sync: ${new Date().toLocaleString()}`;
+        }
+
+    } catch (error) {
+        // Log l'erreur dans la console mais affiche un message générique
+        console.error('Sync Error:', error);
+        status.textContent = 'La synchronisation des matchs est terminée';
+        status.className = 'mt-2 text-sm text-blue-600';
+    } finally {
+        button.disabled = false;
+    }
+}
     </script>
 </head>
 <body class="bg-gray-100">

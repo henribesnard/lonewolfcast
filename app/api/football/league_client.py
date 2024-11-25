@@ -2,16 +2,14 @@ from typing import Dict, Any
 import httpx
 from app.core.config import settings
 import json
-from app.api.football.league_schemas import ApiResponse
 
 class FootballAPIClient:
     def __init__(self):
-        self.base_url = "https://api-football-v1.p.rapidapi.com/v3"
+        self.base_url = "https://v3.football.api-sports.io"
         self.headers = {
-            "x-rapidapi-key": settings.RAPIDAPI_KEY,
-            "x-rapidapi-host": settings.RAPIDAPI_HOST
+            "x-apisports-key": settings.API_KEY, 
         }
-    
+
     async def _make_request(self, endpoint: str, params: Dict = None) -> Dict[str, Any]:
         """Méthode générique pour faire des requêtes à l'API"""
         print(f"Making request to {endpoint} with params: {params}")
@@ -41,7 +39,7 @@ class FootballAPIClient:
 
     async def get_leagues(self, season: int = None) -> Dict[str, Any]:
         """
-        Récupère la liste des leagues
+        Récupère la liste des leagues.
         Args:
             season: Optionnel, année de la saison à récupérer
         Returns:

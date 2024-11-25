@@ -5,10 +5,9 @@ import json
 
 class MatchAPIClient:
     def __init__(self):
-        self.base_url = "https://api-football-v1.p.rapidapi.com/v3"
+        self.base_url = "https://v3.football.api-sports.io"
         self.headers = {
-            "x-rapidapi-key": settings.RAPIDAPI_KEY,
-            "x-rapidapi-host": settings.RAPIDAPI_HOST
+           "x-apisports-key": settings.API_KEY, 
         }
 
     async def _make_request(self, endpoint: str, params: Dict = None) -> Dict[str, Any]:

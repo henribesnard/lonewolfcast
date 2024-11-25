@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     DB_CA_PATH: Path = CA_PATH
     
     # API Football
-    RAPIDAPI_KEY: str
-    RAPIDAPI_HOST: str
+    API_KEY: str
+    API_BASE_URL: str
     
     # App
     APP_NAME: str = "LoneWolfCast"
