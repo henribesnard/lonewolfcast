@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoneWolfCast Admin - {% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('admin-static', path='css/dashboard.css') }}">
+    <script>
+        async function syncLeagues() {
+            const button = document.getElementById('sync-leagues-btn');
+            const status = document.getElementById('sync-leagues-status');
+            const progress = document.getElementById('sync-leagues-progress');
+            
+            try {
+                button.disabled = true;
+                status.textContent = 'Synchronisation des ligues en cours...';
+                status.className = 'mt-2 text-sm text-blue-600';
+                
+                const response = await fetch('/api/sync/leagues', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    status.textContent = `Synchronisation terminée: ${data.synced_leagues} ligues sur ${data.total_leagues}, ${data.synced_seasons} saisons synchronisées.`;
+                    status.className = 'mt-2 text-sm text-green-600';
+                    
+                    // Update last sync time
+                    document.getElementById('last-sync').textContent = `Dernière sync: ${new Date().toLocaleString()}`;
+                } else {
+                    throw new Error(data.detail || 'Erreur de synchronisation');
+                }
+            } catch (error) {
+                status.textContent = `Erreur: ${error.message}`;
+                status.className = 'mt-2 text-sm text-red-600';
+            } finally {
+                button.disabled = false;
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <nav class="bg-gray-800 w-64 py-4 px-2">
+            <div class="flex items-center justify-center mb-8">
+                <h1 class="text-white text-xl font-bold">LoneWolfCast Admin</h1>
+            </div>
+            <ul>
+                <li class="mb-2">
+                    <a href="/admin" class="text-gray-300 hover:text-white block px-4 py-2 rounded transition-colors">
+                        Dashboard
+                    </a>
+                </li>
+                <li class="mb-2">
+                    <a href="/admin/predictions" class="text-gray-300 hover:text-white block px-4 py-2 rounded transition-colors">
+                        Prédictions
+                    </a>
+                </li>
+                <li class="mb-2">
+                    <a href="/admin/bankroll" class="text-gray-300 hover:text-white block px-4 py-2 rounded transition-colors">
+                        Bankroll
+                    </a>
+                </li>
+                <li class="mb-2">
+                    <a href="/admin/settings" class="text-gray-300 hover:text-white block px-4 py-2 rounded transition-colors">
+                        Paramètres
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main content -->
+        <main class="flex-1 p-8">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+.sync-button {
+    @apply inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+}
+
+.sync-status {
+    @apply mt-2 text-sm text-gray-600;
+}
+
+.progress-bar {
+    @apply w-full bg-gray-200 rounded-full h-2.5;
+}
+
+.progress-bar-fill {
+    @apply bg-blue-600 h-2.5 rounded-full transition-all duration-500;
+}
+
+.kpi-card {
+    @apply bg-white rounded-lg shadow p-6;
+}
+
+.prediction-stats {
+    @apply grid grid-cols-3 gap-4 mb-4;
+}
+
+.stat-item {
+    @apply text-center;
+}
+
+.stat-value {
+    @apply text-2xl font-bold;
+}
+
+.stat-label {
+    @apply text-sm text-gray-600;
+}
