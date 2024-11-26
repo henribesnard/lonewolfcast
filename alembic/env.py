@@ -1,56 +1,72 @@
 import os
+import sys
 from logging.config import fileConfig
-from sqlalchemy import pool, create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from pathlib import Path
+
+# Ajouter le répertoire racine au PYTHONPATH
+root_dir = Path(__file__).parent.parent
+sys.path.append(str(root_dir))
+
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
 from alembic import context
+
+# Créer le dossier data
+data_dir = root_dir / "data"
+data_dir.mkdir(exist_ok=True)
+
+# Import des modèles
 from app.models.base import Base
-from app.core.config import settings
-from app.core.settings import DEFAULT_ENGINE_KWARGS
-import ssl
+from app.models.league import League, Season
+from app.models.match import Match
+from app.models.odds import OddsBookmaker, OddsValue
+from app.models.prediction import Prediction, SelectedPrediction
+from app.models.team_prediction import PredictionTeam
+from app.models.h2h import H2HMatch
 
-from app.models import (
-    League, Match, OddsBookmaker, OddsValue, 
-    Prediction, SelectedPrediction, BankrollHistory,
-    BankrollTransaction, H2HMatch, PredictionTeam, api_usage
-)
-
+# this is the Alembic Config object
 config = context.config
-fileConfig(config.config_file_name)
 
+# Interpret the config file for Python logging
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# target metadata
 target_metadata = Base.metadata
 
-ssl_context = None
-if hasattr(settings, 'DATABASE_SSL_REQUIRED') and settings.DATABASE_SSL_REQUIRED:
-    ssl_context = settings.get_ssl_context()
-
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL
+    """Run migrations in 'offline' mode."""
+    url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
+
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    connectable: AsyncEngine = create_async_engine(
-        settings.ASYNC_DATABASE_URL,
-        **DEFAULT_ENGINE_KWARGS,
-        connect_args={"ssl": ssl_context} if ssl_context else {},
+    """Run migrations in 'online' mode."""
+    configuration = config.get_section(config.config_ini_section)
+    configuration["sqlalchemy.url"] = "sqlite:///data/football.db"
+    
+    connectable = engine_from_config(
+        configuration,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+        connect_args={"check_same_thread": False}
     )
-    async def do_migrations():
-        async with connectable.connect() as connection:
-            await connection.run_sync(
-                lambda sync_connection: context.configure(
-                    connection=sync_connection, target_metadata=target_metadata, render_as_batch=True
-                )
-            )
-            async with connection.begin():
-                await connection.run_sync(lambda sync_connection: context.run_migrations())
-    import asyncio
-    asyncio.run(do_migrations())
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 if context.is_offline_mode():
     run_migrations_offline()

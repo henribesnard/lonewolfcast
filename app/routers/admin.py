@@ -3,11 +3,11 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader, Environment
 from app.services.sync.league_service import LeagueSyncService
+from app.services.matches_stats_services import get_match_stats
 from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
-from app.models.api_usage import ApiUsage
 from app.core.config import settings
 
 router = APIRouter(prefix="/admin")
@@ -27,38 +27,42 @@ templates = Jinja2Templates(env=env)
 @router.get("/", name="admin.dashboard")
 @router.get("", name="admin.dashboard")
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    service = LeagueSyncService(db)
+    league_service = LeagueSyncService(db)
     try:
-        # Récupérer les statistiques du tableau de bord
-        stats = await service.get_dashboard_stats()
+        # Récupérer les statistiques
+        league_stats = await league_service.get_dashboard_stats()
+        match_stats = await get_match_stats(db)
 
-        # Récupérer les statistiques d'utilisation des appels API
-        today = datetime.now().date()
-        stmt = select(ApiUsage.calls_made).where(ApiUsage.date == today)
-        result = await db.execute(stmt)
-        calls_made_today = result.scalar_one_or_none() or 0
-        max_calls_per_day = settings.API_MAX_CALLS_PER_DAY
+        # Combiner toutes les données pour le template
+        template_data = {
+            "request": request,
+            "leagues_count": league_stats["leagues_count"],
+            "last_sync": league_stats["last_sync"],
+            "total_matches": match_stats["total_matches"],
+            "match_status": match_stats["match_status"],
+            "matches_last_sync": match_stats["last_sync"]
+        }
 
-        # Passer toutes les variables au template
+        print("Template data:", template_data)  # Pour debug
+
         return templates.TemplateResponse(
             "dashboard.html",
-            {
-                "request": request,
-                "leagues_count": stats["leagues_count"],
-                "last_sync": stats["last_sync"],
-                "calls_made_today": calls_made_today,
-                "max_calls_per_day": max_calls_per_day
-            }
+            template_data
         )
     except Exception as e:
         print(f"Error in dashboard route: {str(e)}")
+        import traceback
+        traceback.print_exc()  # Pour plus de détails sur l'erreur
+        
+        # Données par défaut en cas d'erreur
         return templates.TemplateResponse(
             "dashboard.html",
             {
                 "request": request,
                 "leagues_count": 0,
                 "last_sync": "Non disponible",
-                "calls_made_today": 0,
-                "max_calls_per_day": settings.API_MAX_CALLS_PER_DAY
+                "total_matches": 0,
+                "match_status": {},
+                "matches_last_sync": "Non disponible"
             }
         )

@@ -1,0 +1,8 @@
+[tool.poetry]
+name = "lonewolfcast"
+version = "0.1.0"
+description = "Football predictions app"
+authors = ["Henri Besnard"]
+
+[tool.poetry.dependencies]
+python = "^3.12"

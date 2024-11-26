@@ -1,63 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, distinct
 from app.api.football.league_client import FootballAPIClient
 from app.api.football.league_schemas import ApiResponse, LeagueSyncResponse
 from app.models.league import League, Season
-from app.services.apiRate_limiter_service import ApiRateLimiter
-from app.core.config import settings
-import asyncio
-
 
 class LeagueSyncService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.client = FootballAPIClient()
-        # Rate limiter pour la limite journalière
-        self.daily_limiter = ApiRateLimiter(settings.API_MAX_CALLS_PER_DAY, db)
-        # Pour la limite par minute
-        self.minute_calls = 0
-        self.minute_start = datetime.now()
-
-    async def _check_minute_limit(self):
-        """Vérifie et gère la limite par minute"""
-        current_time = datetime.now()
-        
-        if current_time - self.minute_start >= timedelta(minutes=1):
-            # Nouvelle minute commence
-            print(f"Réinitialisation du compteur minute: {self.minute_calls} appels effectués")
-            self.minute_calls = 0
-            self.minute_start = current_time
-        
-        if self.minute_calls >= settings.API_RATE_LIMIT:
-            # Attendre jusqu'à la prochaine minute
-            seconds_to_wait = 60 - (current_time - self.minute_start).seconds
-            print(f"Limite par minute atteinte ({settings.API_RATE_LIMIT}), attente de {seconds_to_wait} secondes")
-            await asyncio.sleep(seconds_to_wait)  # Utilisation d'asyncio.sleep
-            self.minute_calls = 0
-            self.minute_start = datetime.now()
-        
-        self.minute_calls += 1
-        print(f"Appels cette minute: {self.minute_calls}/{settings.API_RATE_LIMIT}")
-
-    async def _make_api_call(self):
-        """Fait un appel API en respectant les deux limites"""
-        try:
-            # Vérifier la limite journalière
-            if not await self.daily_limiter.can_make_call():
-                raise Exception(f"Limite d'appels API journalière atteinte ({settings.API_MAX_CALLS_PER_DAY}). Réessayez demain.")
-
-            # Vérifier la limite par minute
-            await self._check_minute_limit()
-
-            # Enregistrer l'appel dans le compteur journalier
-            await self.daily_limiter.record_call()
-            
-            # Faire l'appel API
-            return await self.client.get_leagues()
-        except Exception as e:
-            print(f"Erreur lors de l'appel API: {str(e)}")
-            raise
 
     async def get_dashboard_stats(self) -> dict:
         """
@@ -79,22 +30,14 @@ class LeagueSyncService:
             update_query = select(func.max(League.updated_at)).select_from(League)
             update_result = await self.db.execute(update_query)
             last_sync = update_result.scalar_one_or_none()
-            print(f"\nDernière mise à jour (raw): {last_sync}")
 
             formatted_date = "Jamais"
             if last_sync:
                 try:
                     formatted_date = last_sync.strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"Date formatée: {formatted_date}")
                 except Exception as e:
                     print(f"Erreur lors du formatage de la date: {str(e)}")
                     formatted_date = "Erreur format"
-
-            # Récupérer les stats d'utilisation API
-            today = datetime.now().date()
-            api_usage = await self.daily_limiter._get_usage_from_db(today)
-            if api_usage:
-                print(f"\nUtilisation API aujourd'hui: {api_usage.calls_made}/{settings.API_MAX_CALLS_PER_DAY}")
 
             print("\n=== Fin récupération des stats dashboard ===")
             return {
@@ -120,16 +63,10 @@ class LeagueSyncService:
             current_time = datetime.utcnow()
             print(f"Timestamp de synchronisation: {current_time}")
 
-            # Appel API avec gestion des limites
+            # Appel API
             print("Récupération des données via l'API...")
-            api_data = await self._make_api_call()
+            api_data = await self.client.get_leagues()
             api_response = ApiResponse(**api_data)
-
-            # Afficher les stats d'utilisation API
-            today = datetime.now().date()
-            daily_usage = await self.daily_limiter._get_usage_from_db(today)
-            if daily_usage:
-                print(f"Utilisation API aujourd'hui: {daily_usage.calls_made}/{settings.API_MAX_CALLS_PER_DAY}")
 
             total_leagues = len(api_response.response)
             synced_leagues = 0
@@ -221,11 +158,6 @@ class LeagueSyncService:
                     continue
 
             print("\n=== Fin synchronisation des leagues ===")
-            
-            # Stats finales d'utilisation API
-            final_usage = await self.daily_limiter._get_usage_from_db(today)
-            if final_usage:
-                print(f"Utilisation API finale: {final_usage.calls_made}/{settings.API_MAX_CALLS_PER_DAY}")
 
             return LeagueSyncResponse(
                 total_leagues=total_leagues,

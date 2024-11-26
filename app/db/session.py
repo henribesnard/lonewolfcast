@@ -8,7 +8,7 @@ from app.models.base import Base
 engine = create_async_engine(
     settings.ASYNC_DATABASE_URL,
     pool_pre_ping=True,
-    echo=settings.DB_ECHO
+    **settings.engine_kwargs  # Utilise les paramètres prédéfinis dans settings
 )
 
 # Configuration du sessionmaker

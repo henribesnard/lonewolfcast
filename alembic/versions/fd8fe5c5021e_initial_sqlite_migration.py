@@ -1,8 +1,8 @@
-"""initial migration
+"""initial sqlite migration
 
-Revision ID: e71fe67efa5b
+Revision ID: fd8fe5c5021e
 Revises: 
-Create Date: 2024-11-22 16:25:30.537099
+Create Date: 2024-11-26 06:25:03.454031
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e71fe67efa5b'
+revision: str = 'fd8fe5c5021e'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -36,7 +36,7 @@ def upgrade() -> None:
     sa.Column('longest_winning_streak', sa.Integer(), nullable=True),
     sa.Column('longest_losing_streak', sa.Integer(), nullable=True),
     sa.Column('current_streak', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -47,14 +47,13 @@ def upgrade() -> None:
     sa.Column('country', sa.String(length=100), nullable=True),
     sa.Column('logo', sa.String(length=255), nullable=True),
     sa.Column('flag', sa.String(length=255), nullable=True),
+    sa.Column('type', sa.String(length=50), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    with op.batch_alter_table('leagues', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_leagues_api_id'), ['api_id'], unique=True)
-
+    op.create_index(op.f('ix_leagues_api_id'), 'leagues', ['api_id'], unique=True)
     op.create_table('matches',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('api_fixture_id', sa.Integer(), nullable=True),
@@ -69,14 +68,32 @@ def upgrade() -> None:
     sa.Column('away_team_logo', sa.String(length=255), nullable=True),
     sa.Column('venue', sa.String(length=255), nullable=True),
     sa.Column('round', sa.String(length=50), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('predictions_synced', sa.Boolean(), nullable=False),
+    sa.Column('last_predictions_sync', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('odds_synced', sa.Boolean(), nullable=False),
+    sa.Column('last_odds_sync', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['league_id'], ['leagues.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    with op.batch_alter_table('matches', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_matches_api_fixture_id'), ['api_fixture_id'], unique=True)
-
+    op.create_index(op.f('ix_matches_api_fixture_id'), 'matches', ['api_fixture_id'], unique=True)
+    op.create_table('seasons',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('league_id', sa.Integer(), nullable=False),
+    sa.Column('year', sa.Integer(), nullable=False),
+    sa.Column('start_date', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('end_date', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('current', sa.Boolean(), nullable=True),
+    sa.Column('has_predictions', sa.Boolean(), nullable=True),
+    sa.Column('has_odds', sa.Boolean(), nullable=True),
+    sa.Column('matches_synced', sa.Boolean(), nullable=False),
+    sa.Column('last_match_sync', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.ForeignKeyConstraint(['league_id'], ['leagues.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('h2h_matches',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('match_id', sa.Integer(), nullable=False),
@@ -92,7 +109,7 @@ def upgrade() -> None:
     sa.Column('halftime_away_goals', sa.Integer(), nullable=True),
     sa.Column('fulltime_home_goals', sa.Integer(), nullable=True),
     sa.Column('fulltime_away_goals', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['match_id'], ['matches.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -102,7 +119,7 @@ def upgrade() -> None:
     sa.Column('bookmaker_id', sa.Integer(), nullable=False),
     sa.Column('bookmaker_name', sa.String(length=100), nullable=False),
     sa.Column('bet_type', sa.String(length=50), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['match_id'], ['matches.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -135,7 +152,7 @@ def upgrade() -> None:
     sa.Column('league_loses_home', sa.Integer(), nullable=True),
     sa.Column('league_loses_away', sa.Integer(), nullable=True),
     sa.Column('league_loses_total', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['match_id'], ['matches.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -168,7 +185,7 @@ def upgrade() -> None:
     sa.Column('comparison_goals_away', sa.Float(), nullable=True),
     sa.Column('comparison_total_home', sa.Float(), nullable=True),
     sa.Column('comparison_total_away', sa.Float(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['match_id'], ['matches.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -178,7 +195,7 @@ def upgrade() -> None:
     sa.Column('bookmaker_id', sa.Integer(), nullable=False),
     sa.Column('outcome', sa.String(length=50), nullable=False),
     sa.Column('odd', sa.Float(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['bookmaker_id'], ['odds_bookmakers.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -190,7 +207,7 @@ def upgrade() -> None:
     sa.Column('odds_value_id', sa.Integer(), nullable=False),
     sa.Column('bet_amount', sa.Float(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['match_id'], ['matches.id'], ),
     sa.ForeignKeyConstraint(['odds_value_id'], ['odds_values.id'], ),
     sa.ForeignKeyConstraint(['prediction_id'], ['predictions.id'], ),
@@ -203,7 +220,7 @@ def upgrade() -> None:
     sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('bankroll_before', sa.Float(), nullable=False),
     sa.Column('bankroll_after', sa.Float(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['selected_prediction_id'], ['selected_predictions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -219,13 +236,10 @@ def downgrade() -> None:
     op.drop_table('prediction_teams')
     op.drop_table('odds_bookmakers')
     op.drop_table('h2h_matches')
-    with op.batch_alter_table('matches', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_matches_api_fixture_id'))
-
+    op.drop_table('seasons')
+    op.drop_index(op.f('ix_matches_api_fixture_id'), table_name='matches')
     op.drop_table('matches')
-    with op.batch_alter_table('leagues', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_leagues_api_id'))
-
+    op.drop_index(op.f('ix_leagues_api_id'), table_name='leagues')
     op.drop_table('leagues')
     op.drop_table('bankroll_history')
     # ### end Alembic commands ###

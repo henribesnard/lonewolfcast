@@ -1,22 +1,23 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from pathlib import Path
-import ssl
 import os
-from typing import Optional, Dict, ClassVar
+from typing import ClassVar, Dict
 
 # Chemin de base
 BASE_DIR = Path(__file__).parent.parent.parent
 print(f"\nConfig Initialization:")
 print(f"===============================")
 print(f"Config BASE_DIR: {BASE_DIR}")
-CA_PATH = BASE_DIR / "ca.pem"
+
+# Créer le dossier data s'il n'existe pas
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
 class Settings(BaseSettings):
     # Database
-    DB_URL: str
-    DB_SSL_MODE: str = "require"
-    DB_CA_PATH: Path = CA_PATH
+    DB_URL: str = f"sqlite+aiosqlite:///{DATA_DIR}/football.db"
+    DB_ECHO: bool = False
     
     # API Football
     API_KEY: str
@@ -44,12 +45,6 @@ class Settings(BaseSettings):
         "AUTO_RELOAD": True
     }
     
-    # Database Pool
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
-    DB_POOL_TIMEOUT: int = 30
-    DB_ECHO: bool = False
-    
     # API Settings
     API_RATE_LIMIT: int = 450
     API_TIMEOUT: int = 30
@@ -75,31 +70,17 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        return self.DB_URL.replace("postgres://", "postgresql://")
+        return self.DB_URL
     
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        from urllib.parse import urlparse
-        parsed = urlparse(self.DB_URL)
-        return f"postgresql+asyncpg://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port}/{parsed.path.lstrip('/')}"
+        return self.DB_URL
     
-    def get_ssl_context(self) -> ssl.SSLContext:
-        if not self.DB_CA_PATH.exists():
-            raise FileNotFoundError(f"CA certificate not found at {self.DB_CA_PATH}")
-        
-        ssl_context = ssl.create_default_context(
-            purpose=ssl.Purpose.SERVER_AUTH,
-            cafile=str(self.DB_CA_PATH)
-        )
-        return ssl_context
-
     @property
     def engine_kwargs(self) -> dict:
         return {
-            "pool_size": self.DB_POOL_SIZE,
-            "max_overflow": self.DB_MAX_OVERFLOW,
-            "pool_timeout": self.DB_POOL_TIMEOUT,
-            "echo": self.DB_ECHO
+            "echo": self.DB_ECHO,
+            "connect_args": {"check_same_thread": False}
         }
     
     class Config:
