@@ -123,5 +123,6 @@ dmypy.json
 
 cython_debug/
 
-data/football.db
-
+# Data directory
+data/
+*.db
