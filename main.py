@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from app.core.config import Settings
-from app.routers import admin, league_sync, match_sync
+from app.routers import admin, league_sync, match_sync, prediction_sync
 from fastapi.templating import Jinja2Templates
 import os
 from pathlib import Path
@@ -51,6 +51,7 @@ async def root():
 app.include_router(admin.router)
 app.include_router(league_sync.router)
 app.include_router(match_sync.router)
+app.include_router(prediction_sync.router)
 
 # Error handlers
 @app.exception_handler(404)

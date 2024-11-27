@@ -82,6 +82,75 @@
         button.disabled = false;
     }
 }
+
+async function getPredictionsStatus() {
+    try {
+        const response = await fetch('/api/sync/predictions/status');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const stats = data.data;
+            // Mise à jour des éléments UI
+            document.getElementById('predictions-count').textContent = stats.synced_matches;
+            document.getElementById('total-matches').textContent = stats.total_matches;
+            document.getElementById('pending-matches').textContent = stats.pending_matches;
+            if (stats.last_sync) {
+                document.getElementById('last-sync-predictions').textContent = 
+                    `Dernière sync: ${new Date(stats.last_sync).toLocaleString()}`;
+            }
+        } else {
+            console.error('Erreur lors de la récupération des stats:', data);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+    }
+}
+
+async function syncPredictions() {
+    const button = document.getElementById('sync-predictions-btn');
+    const status = document.getElementById('sync-predictions-status');
+    
+    try {
+        button.disabled = true;
+        status.textContent = 'Synchronisation des prédictions en cours...';
+        status.className = 'mt-2 text-sm text-blue-600';
+        
+        const response = await fetch('/api/sync/predictions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            status.textContent = data.message;
+            status.className = 'mt-2 text-sm text-green-600';
+            
+            // Mettre à jour les stats
+            await getPredictionsStatus();
+        } else {
+            throw new Error(data.detail || 'Erreur de synchronisation');
+        }
+    } catch (error) {
+        console.error('Sync Error:', error);
+        status.textContent = `Erreur: ${error.message}`;
+        status.className = 'mt-2 text-sm text-red-600';
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// Charger les stats au chargement de la page
+document.addEventListener('DOMContentLoaded', getPredictionsStatus);
+    // Fonction utilitaire pour formater le temps écoulé
+    function formatTimeElapsed(seconds) {
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m ${remainingSeconds}s`;
+    }
     </script>
 </head>
 <body class="bg-gray-100">

@@ -3,11 +3,11 @@ import httpx
 from app.core.config import settings
 import json
 
-class MatchAPIClient:
+class PredictionAPIClient:
     def __init__(self):
         self.base_url = "https://v3.football.api-sports.io"
         self.headers = {
-           "x-apisports-key": settings.API_KEY, 
+            "x-apisports-key": settings.API_KEY, 
         }
 
     async def _make_request(self, endpoint: str, params: Dict = None) -> Dict[str, Any]:
@@ -19,7 +19,7 @@ class MatchAPIClient:
                     f"{self.base_url}/{endpoint}",
                     headers=self.headers,
                     params=params,
-                    timeout=30.0
+                    timeout=30.0,
                 )
                 response.raise_for_status()
 
@@ -37,25 +37,21 @@ class MatchAPIClient:
                 print(f"HTTP Error: {str(e)}")
                 raise Exception(f"Error fetching data from API: {str(e)}")
 
-    async def get_matches(self, league_id: int, season: int) -> Dict[str, Any]:
+    async def get_predictions(self, fixture_id: int) -> Dict[str, Any]:
         """
-        Récupère les matchs pour une league et une saison données
+        Récupère les prédictions pour un match spécifique.
         Args:
-            league_id: ID de la league
-            season: Année de la saison
+            fixture_id: ID du match pour lequel récupérer les prédictions.
         Returns:
-            Dict contenant la réponse de l'API
+            Dict contenant la réponse de l'API.
         """
-        params = {
-            "league": league_id,
-            "season": season
-        }
+        params = {"fixture": fixture_id}
 
         try:
-            print(f"Fetching matches for league {league_id} and season {season}...")
-            data = await self._make_request("fixtures", params)
-            print(f"Successfully fetched {data.get('results', 0)} matches")
+            print(f"Fetching predictions for fixture {fixture_id}...")
+            data = await self._make_request("predictions", params)
+            print(f"Successfully fetched predictions for fixture {fixture_id}")
             return data
         except Exception as e:
-            print(f"Error in get_matches: {str(e)}")
-            raise Exception(f"Error fetching matches: {str(e)}")
+            print(f"Error in get_predictions: {str(e)}")
+            raise Exception(f"Error fetching predictions: {str(e)}")

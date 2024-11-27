@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.sync.league_service import LeagueSyncService
-from app.api.football.league_schemas import LeagueSyncResponse
 
 router = APIRouter(prefix="/api/sync")
 

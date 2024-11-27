@@ -20,9 +20,8 @@ from app.models.base import Base
 from app.models.league import League, Season
 from app.models.match import Match
 from app.models.odds import OddsBookmaker, OddsValue
-from app.models.prediction import Prediction, SelectedPrediction
-from app.models.team_prediction import PredictionTeam
-from app.models.h2h import H2HMatch
+from app.models.prediction import Prediction, PredictionComparison, PredictionTeam
+
 
 # this is the Alembic Config object
 config = context.config

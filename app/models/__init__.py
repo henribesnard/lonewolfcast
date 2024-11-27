@@ -1,22 +1,19 @@
 from .base import Base
-from .league import League
-from .match import Match
+from .league import League, Season
+from .match import Match, MatchResult
 from .odds import OddsBookmaker, OddsValue
-from .prediction import Prediction, SelectedPrediction
-from .bankroll import BankrollHistory, BankrollTransaction
-from .h2h import H2HMatch
-from .team_prediction import PredictionTeam
+from .prediction import Prediction, PredictionTeam, PredictionComparison, PredictionOutcome
 
 __all__ = [
     "Base",
     "League",
+    "Season",
     "Match",
+    "MatchResult",
     "OddsBookmaker",
     "OddsValue",
     "Prediction",
-    "SelectedPrediction",
-    "BankrollHistory",
-    "BankrollTransaction",
-    "H2HMatch",
-    "PredictionTeam"
+    "PredictionTeam",
+    "PredictionComparison",
+    "PredictionOutcome"
 ]
