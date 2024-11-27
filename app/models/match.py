@@ -44,53 +44,8 @@ class MatchResult(Base):
     match_id = Column(Integer, ForeignKey('matches.id'), nullable=False)
     
     # Score
-    home_score = Column(Integer, nullable=False)
-    away_score = Column(Integer, nullable=False)
-    home_halftime_score = Column(Integer, nullable=True)
-    away_halftime_score = Column(Integer, nullable=True)
-    
-    # Possession et passes
-    home_possession = Column(Float, nullable=True)  # Stocké en pourcentage (32.5)
-    away_possession = Column(Float, nullable=True)
-    home_total_passes = Column(Integer, nullable=True)
-    away_total_passes = Column(Integer, nullable=True)
-    home_accurate_passes = Column(Integer, nullable=True)
-    away_accurate_passes = Column(Integer, nullable=True)
-    home_passes_accuracy = Column(Float, nullable=True)  # Stocké en pourcentage
-    away_passes_accuracy = Column(Float, nullable=True)
-    
-    # Tirs
-    home_shots_total = Column(Integer, nullable=True)
-    away_shots_total = Column(Integer, nullable=True)
-    home_shots_on_target = Column(Integer, nullable=True)
-    away_shots_on_target = Column(Integer, nullable=True)
-    home_shots_off_target = Column(Integer, nullable=True)
-    away_shots_off_target = Column(Integer, nullable=True)
-    home_shots_blocked = Column(Integer, nullable=True)
-    away_shots_blocked = Column(Integer, nullable=True)
-    home_shots_inside_box = Column(Integer, nullable=True)
-    away_shots_inside_box = Column(Integer, nullable=True)
-    home_shots_outside_box = Column(Integer, nullable=True)
-    away_shots_outside_box = Column(Integer, nullable=True)
-    
-    # Autres stats
-    home_corners = Column(Integer, nullable=True)
-    away_corners = Column(Integer, nullable=True)
-    home_offsides = Column(Integer, nullable=True)
-    away_offsides = Column(Integer, nullable=True)
-    home_fouls = Column(Integer, nullable=True)
-    away_fouls = Column(Integer, nullable=True)
-    home_yellow_cards = Column(Integer, nullable=True)
-    away_yellow_cards = Column(Integer, nullable=True)
-    home_red_cards = Column(Integer, nullable=True)
-    away_red_cards = Column(Integer, nullable=True)
-    home_goalkeeper_saves = Column(Integer, nullable=True)
-    away_goalkeeper_saves = Column(Integer, nullable=True)
-    
-    # Résultat du match
-    winner_id = Column(Integer, nullable=True)  # NULL si match nul
-    has_winner = Column(Boolean, nullable=False)  # False si match nul
-    total_goals = Column(Integer, nullable=False)
+    home_score = Column(Integer, nullable=False)  # goals.home dans l'API
+    away_score = Column(Integer, nullable=False)  # goals.away dans l'API
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
