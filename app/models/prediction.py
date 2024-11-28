@@ -130,6 +130,9 @@ class PredictionOutcome(Base):
     under_over_prediction_correct = Column(Boolean, nullable=True)
     goals_prediction_accuracy = Column(Float, nullable=True)  # Pourcentage de précision
     
+    # Indicateur si les deux équipes ont marqué
+    both_teams_scored = Column(Boolean, nullable=False)  # Nouveau champ
+    
     # Métriques pour le ML
     pre_match_confidence = Column(Float, nullable=True)  # Basé sur les comparaisons
     form_difference = Column(Float, nullable=True)  # Différence de forme entre les équipes

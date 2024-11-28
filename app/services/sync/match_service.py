@@ -1,10 +1,9 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from sqlalchemy.orm import selectinload
 from app.api.football.match_client import MatchAPIClient
 from app.api.football.match_schemas import ApiResponse, MatchSyncResponse
-from app.models.match import Match
+from app.models.match import Match, MatchResult
 from app.models.league import League, Season
 
 class MatchSyncService:
@@ -19,7 +18,6 @@ class MatchSyncService:
         try:
             current_time = datetime.utcnow()
 
-            # Vérifier et récupérer les leagues existantes avec ID
             result = await self.db.execute(
                 select(League.api_id, League.id)
                 .where(League.is_active.is_(True))
@@ -51,6 +49,8 @@ class MatchSyncService:
                     for match_data in api_response.response:
                         fixture = match_data.fixture
                         teams = match_data.teams
+                        goals = match_data.goals
+                        score = match_data.score
 
                         match_date = self.parse_date(fixture.date)
                         
@@ -63,13 +63,29 @@ class MatchSyncService:
                             db_match.status = fixture.status.short
                             db_match.home_team = teams.home.name
                             db_match.away_team = teams.away.name
-                            db_match.round = fixture.round
+                            db_match.round = match_data.league.round
                             db_match.updated_at = current_time
                             updated_matches += 1
+
+                            if fixture.status.short == "FT":
+                                result_stmt = select(MatchResult).where(MatchResult.match_id == db_match.id)
+                                result_obj = await self.db.execute(result_stmt)
+                                match_result = result_obj.scalar_one_or_none()
+
+                                if match_result:
+                                    match_result.home_score = goals.home or 0
+                                    match_result.away_score = goals.away or 0
+                                else:
+                                    match_result = MatchResult(
+                                        match_id=db_match.id,
+                                        home_score=goals.home or 0,
+                                        away_score=goals.away or 0
+                                    )
+                                    self.db.add(match_result)
                         else:
                             new_match = Match(
                                 api_fixture_id=fixture.id,
-                                league_id=league_id,  # Utilise l'ID interne
+                                league_id=league_id,
                                 date=match_date,
                                 status=fixture.status.short,
                                 home_team=teams.home.name,
@@ -79,12 +95,21 @@ class MatchSyncService:
                                 away_team_id=teams.away.id,
                                 away_team_logo=teams.away.logo,
                                 venue=fixture.venue.name if fixture.venue else None,
-                                round=fixture.round,
+                                round=match_data.league.round,
                                 created_at=current_time,
                                 updated_at=current_time
                             )
                             self.db.add(new_match)
                             created_matches += 1
+
+                            if fixture.status.short == "FT":
+                                await self.db.flush()
+                                match_result = MatchResult(
+                                    match_id=new_match.id,
+                                    home_score=goals.home or 0,
+                                    away_score=goals.away or 0
+                                )
+                                self.db.add(match_result)
 
                         await self.db.commit()
                         synced_matches += 1

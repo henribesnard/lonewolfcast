@@ -10,7 +10,7 @@ class LeagueSyncService:
         self.db = db
         self.client = FootballAPIClient()
 
-    async def get_dashboard_stats(self) -> dict:
+    async def get_dashboard_stats_league (self) -> dict:
         """
         Récupère les statistiques pour le dashboard
         """

@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 from app.models.match import Match
 from app.models.prediction import (
-    Prediction, PredictionTeam, PredictionComparison, PredictionOutcome
+    Prediction, PredictionTeam, PredictionComparison
 )
 from app.api.football.prediction_client import PredictionAPIClient
 
@@ -81,13 +81,6 @@ class PredictionSyncService:
             )
             self.db.add(comp)
 
-            # Ajouter l'outcome initial
-            outcome = PredictionOutcome(
-                prediction_id=new_prediction.id,
-                pre_match_confidence=float(comparison['total']['home'].rstrip('%'))
-            )
-            self.db.add(outcome)
-
             return True
 
         except Exception as e:
@@ -97,7 +90,6 @@ class PredictionSyncService:
     async def sync_predictions(self) -> Dict[str, Any]:
         """Synchronise les prédictions pour tous les matchs non synchronisés"""
         try:
-            # Récupérer les matchs non synchronisés
             query = select(Match).where(Match.predictions_synced == False)
             result = await self.db.execute(query)
             matches_to_sync = result.scalars().all()
